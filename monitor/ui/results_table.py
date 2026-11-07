@@ -44,6 +44,9 @@ class TablaResultados(ttk.Frame):
         self._menu = tk.Menu(self.tree, tearoff=0)
         self._menu.add_command(label="Tracert a esta cámara", command=self._tracert_seleccionado)
         self._menu.add_command(label="Ver historial de la cámara", command=self._historial_seleccionado)
+        self._menu.add_separator()
+        self._menu.add_command(label="Copiar nombre de la cámara", command=lambda: self._copiar_seleccionado(0))
+        self._menu.add_command(label="Copiar IP", command=lambda: self._copiar_seleccionado(1))
         self.tree.bind("<Button-3>", self._menu_contextual)
 
     # ---------- API publica
@@ -126,6 +129,8 @@ class TablaResultados(ttk.Frame):
         sel = self.seleccionado()
         valido = bool(sel and normalizar_ip(sel[1]))
         self._menu.entryconfig(0, state="normal" if valido else "disabled")
+        self._menu.entryconfig(3, state="normal" if sel and sel[0] else "disabled")   # copiar nombre
+        self._menu.entryconfig(4, state="normal" if sel and sel[1] else "disabled")   # copiar IP
         try:
             self._menu.tk_popup(evt.x_root, evt.y_root)
         finally:
@@ -140,3 +145,10 @@ class TablaResultados(ttk.Frame):
         sel = self.seleccionado()
         if sel and self._al_abrir:
             self._al_abrir(*sel)
+
+    def _copiar_seleccionado(self, indice: int) -> None:
+        """Copia al portapapeles el nombre (0) o la IP (1) de la fila seleccionada."""
+        sel = self.seleccionado()
+        if sel and sel[indice]:
+            self.clipboard_clear()
+            self.clipboard_append(sel[indice])

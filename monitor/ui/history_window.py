@@ -19,6 +19,16 @@ class VentanaHistorial(tk.Toplevel):
 
         ttk.Label(self, text=self._resumen(datos)).pack(anchor="w", padx=8, pady=6)
 
+        barra = ttk.Frame(self)
+        barra.pack(fill="x", padx=8, pady=(0, 6))
+        self._v_copiado = tk.StringVar()
+        for texto, valor in (("Copiar nombre", nombre), ("Copiar IP", ip)):
+            btn = ttk.Button(barra, text=texto, command=lambda v=valor: self._copiar(v))
+            btn.pack(side="left", padx=(0, 6))
+            if not valor:
+                btn.state(["disabled"])
+        ttk.Label(barra, textvariable=self._v_copiado).pack(side="left", padx=6)
+
         cols = ("Fecha", "Latencia (ms)", "% Paquetes perdidos", "Estado")
         tree = ttk.Treeview(self, columns=cols, show="headings")
         for c in cols:
@@ -35,6 +45,11 @@ class VentanaHistorial(tk.Toplevel):
                         values=(ts, "" if ms is None else ms,
                                 "" if perdida is None else perdida, estado),
                         tags=(estado,))
+
+    def _copiar(self, texto: str) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(texto)
+        self._v_copiado.set(f"Copiado: {texto}")
 
     @staticmethod
     def _resumen(datos: list[tuple]) -> str:
