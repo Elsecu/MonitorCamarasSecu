@@ -7,6 +7,8 @@ import queue
 import threading
 from typing import Any, Callable
 
+from ..pinger import EscaneoCancelado
+
 log = logging.getLogger(__name__)
 
 
@@ -18,6 +20,8 @@ class Trabajador:
         def _run() -> None:
             try:
                 self.cola.put(("ok", tarea, fn(*args)))
+            except EscaneoCancelado:
+                self.cola.put(("cancel", tarea, None))
             except Exception as e:  # noqa: BLE001
                 log.exception("Fallo la tarea %s", tarea)
                 self.cola.put(("err", tarea, e))

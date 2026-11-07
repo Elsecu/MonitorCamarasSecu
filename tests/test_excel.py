@@ -25,7 +25,7 @@ def test_exportar_matriz_orden_y_formato(tmp_path):
     filas = [("a", "1.1.1.1", [5.0, "Sin respuesta", 200.0]), ("b", "", ["No hay IP", None, None])]
     exportar_matriz(str(p), tss, filas, 150)
     ws = load_workbook(p).active
-    assert [c.value for c in ws[1]][:2] == ["Nodo", "IP"]
+    assert [c.value for c in ws[1]][:2] == ["Cámara", "Dirección IP"]
     fechas = [c.value for c in ws[1]][2:]
     assert fechas == sorted(fechas) and len(fechas) == 3          # cronologico
     assert [c.value for c in ws[2]] == ["a", "1.1.1.1", 5.0, "Sin respuesta", 200.0]

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import queue
+import threading
 import time
 import tkinter as tk
 from datetime import datetime
@@ -15,11 +16,12 @@ from ..excel_exporter import exportar_matriz, exportar_resultados
 from ..excel_reader import leer_nodos
 from ..models import Estado, ParametrosPing
 from ..service import MonitorService
-from ..utils import es_admin
+from ..utils import es_admin, normalizar_ip
 from .history_window import VentanaHistorial
 from .list_picker import elegir_lista
 from .results_table import TablaResultados
 from .scans_window import VentanaEscaneos
+from .tracert_window import VentanaTracert
 from .worker import Trabajador, es_error_permisos
 
 
@@ -31,6 +33,7 @@ class VentanaPrincipal(tk.Tk):
         self.service = service
         self.trabajador = Trabajador()
         self._ejecutando = False
+        self._cancelar = threading.Event()
         self._exportando = False
         self._proxima_auto = 0.0
 
@@ -69,7 +72,9 @@ class VentanaPrincipal(tk.Tk):
         self.prog = ttk.Progressbar(self, mode="determinate")
         self.prog.pack(fill="x", padx=8)
         self._barra_filtros()
-        self.tabla = TablaResultados(self, al_abrir=self._abrir_historial)
+        self.tabla = TablaResultados(
+            self, al_abrir=self._abrir_historial, al_tracert=self._abrir_tracert,
+            al_seleccionar=self._actualizar_boton_tracert)
         self.tabla.pack(fill="both", expand=True, padx=8)
         ttk.Label(self, textvariable=self.v_status, relief="sunken", anchor="w").pack(
             fill="x", side="bottom")
@@ -96,12 +101,15 @@ class VentanaPrincipal(tk.Tk):
     def _barra_botones(self) -> None:
         f = ttk.Frame(self, padding=8)
         f.pack(fill="x")
-        self.btn_run = ttk.Button(f, text="Ejecutar escaneo", command=self._ejecutar)
+        self.btn_run = ttk.Button(f, text="Ejecutar escaneo", command=self._alternar_escaneo)
+        self._texto_ejecutar = "Ejecutar escaneo"
         self.btn_run.pack(side="left")
         ttk.Button(f, text="Exportar (Escaneo actual)", command=self._exportar_actual).pack(side="left", padx=6)
         ttk.Button(f, text=f"Exportar historial ({DIAS_RETENCION} dias)",
                    command=self._exportar_mes).pack(side="left")
         ttk.Button(f, text="Ver historial de escaneos", command=self._abrir_escaneos).pack(side="left", padx=6)
+        self.btn_tracert = ttk.Button(f, text="Tracert", command=self._abrir_tracert, state="disabled")
+        self.btn_tracert.pack(side="left")
         ttk.Button(f, text="Carpeta de datos", command=self._abrir_datos).pack(side="right")
 
     def _barra_filtros(self) -> None:
@@ -167,6 +175,33 @@ class VentanaPrincipal(tk.Tk):
             return
         VentanaHistorial(self, self.repo, nombre, ip)
 
+    def _alternar_escaneo(self) -> None:
+        """Un solo boton: ejecuta, y mientras corre cancela."""
+        if self._ejecutando:
+            self._cancelar.set()
+            self.btn_run.state(["disabled"])
+            self.v_status.set("Cancelando escaneo...")
+        else:
+            self._ejecutar()
+
+    def _actualizar_boton_tracert(self) -> None:
+        sel = self.tabla.seleccionado()
+        valido = bool(sel and normalizar_ip(sel[1]))
+        self.btn_tracert.state(["!disabled"] if valido else ["disabled"])
+
+    def _abrir_tracert(self, nombre: str | None = None, ip: str | None = None) -> None:
+        """Abre una ventana de tracert para la camara seleccionada (una por camara)."""
+        if ip is None:
+            sel = self.tabla.seleccionado()
+            if not sel:
+                return
+            nombre, ip = sel
+        norm = normalizar_ip(ip)
+        if norm is None:
+            messagebox.showinfo("Tracert", "Esta cámara no tiene una IP válida.")
+            return
+        VentanaTracert(self, nombre or "", norm)
+
     def _abrir_escaneos(self) -> None:
         VentanaEscaneos(self, self.repo, self._ver_escaneo)
 
@@ -201,11 +236,12 @@ class VentanaPrincipal(tk.Tk):
             self.v_status.set("El Excel no tiene nodos (A = nombre, B = IP, fila 1 = encabezado).")
             return
         self._ejecutando = True
-        self.btn_run.state(["disabled"])
+        self._cancelar.clear()
+        self.btn_run.config(text="Cancelar escaneo")
         self.prog["value"] = 0
         self.v_status.set(f"Probando {len(nodos)} nodos...")
         self.trabajador.lanzar("ping", self.service.ejecutar, nodos, params,
-                               self.trabajador.progreso, Path(ruta).stem)
+                               self.trabajador.progreso, Path(ruta).stem, self._cancelar)
 
     def _exportar_actual(self) -> None:
         res = self.tabla.resultados
@@ -278,7 +314,12 @@ class VentanaPrincipal(tk.Tk):
             return
         self._ejecutando = False
         self.btn_run.state(["!disabled"])
+        self.btn_run.config(text=self._texto_ejecutar)
         self._proxima_auto = time.time() + self._minutos_auto() * 60
+        if tipo == "cancel":
+            self.prog["value"] = 0
+            self.v_status.set("Escaneo cancelado. No se guardó ningún resultado.")
+            return
         if tipo == "ok":
             self.prog["value"] = self.prog["maximum"]
             self.tabla.cargar(dato)

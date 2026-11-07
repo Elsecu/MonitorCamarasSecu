@@ -8,7 +8,7 @@ class PingerFalso:
         self.stats = stats
         self.recibidas = None
 
-    def ping(self, ips, params, progreso=None):
+    def ping(self, ips, params, progreso=None, cancelar=None):
         self.recibidas = ips
         if progreso:
             progreso(len(ips), len(ips))

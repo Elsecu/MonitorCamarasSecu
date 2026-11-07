@@ -16,6 +16,8 @@ DIAS_RETENCION = 30          # dias que se conservan los registros
 LOTE_PING = 200              # IPs por tanda (permite mostrar progreso)
 FMT_TS = "%Y-%m-%d %H:%M:%S"
 MAX_COLUMNAS_EXCEL = 16_000  # limite de Excel: 16,384 columnas
+TRACERT_MAX_SALTOS = 30      # saltos maximos del tracert
+TRACERT_TIMEOUT_MS = 1000    # espera por salto (ms)
 
 # Colores por estado (hex sin '#')
 COLOR_ESTADO = {

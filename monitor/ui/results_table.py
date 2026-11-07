@@ -1,12 +1,13 @@
 """Tabla de resultados con colores, filtro y ordenamiento."""
 from __future__ import annotations
 
+import tkinter as tk
 from tkinter import ttk
 from typing import Callable, Optional
 
 from ..config import COLOR_ESTADO
 from ..models import Estado, Resultado
-from ..utils import clave_ip
+from ..utils import clave_ip, normalizar_ip
 
 COLUMNAS = ("Cámara", "Dirección IP", "Latencia (ms)", "% Paquetes perdidos", "Estado")
 _ATRIBUTO = {"Cámara": "nombre", "Dirección IP": "ip", "Latencia (ms)": "ms",
@@ -15,9 +16,13 @@ _ANCHOS = (340, 120, 90, 100, 120)
 
 
 class TablaResultados(ttk.Frame):
-    def __init__(self, parent, al_abrir: Optional[Callable[[str, str], None]] = None):
+    def __init__(self, parent, al_abrir: Optional[Callable[[str, str], None]] = None,
+                 al_tracert: Optional[Callable[[str, str], None]] = None,
+                 al_seleccionar: Optional[Callable[[], None]] = None):
         super().__init__(parent)
         self._al_abrir = al_abrir
+        self._al_tracert = al_tracert
+        self._al_seleccionar = al_seleccionar
         self._resultados: list[Resultado] = []
         self._orden_inverso: dict[str, bool] = {}
         self._filtro_estado = "Todos"
@@ -35,11 +40,24 @@ class TablaResultados(ttk.Frame):
         for estado, color in COLOR_ESTADO.items():
             self.tree.tag_configure(estado, background="#" + color)
         self.tree.bind("<Double-1>", self._doble_click)
+        self.tree.bind("<<TreeviewSelect>>", lambda e: self._notificar_seleccion())
+        self._menu = tk.Menu(self.tree, tearoff=0)
+        self._menu.add_command(label="Tracert a esta cámara", command=self._tracert_seleccionado)
+        self._menu.add_command(label="Ver historial de la cámara", command=self._historial_seleccionado)
+        self.tree.bind("<Button-3>", self._menu_contextual)
 
     # ---------- API publica
     @property
     def resultados(self) -> list[Resultado]:
         return self._resultados
+
+    def seleccionado(self) -> Optional[tuple[str, str]]:
+        """(nombre, ip) de la fila seleccionada, o None."""
+        sel = self.tree.selection()
+        if not sel:
+            return None
+        v = self.tree.item(sel[0], "values")
+        return str(v[0]), str(v[1])
 
     def cargar(self, resultados: list[Resultado]) -> None:
         self._resultados = list(resultados)
@@ -72,6 +90,7 @@ class TablaResultados(ttk.Frame):
                         r.estado),
                 tags=(r.estado,),
             )
+        self._notificar_seleccion()
 
     def _ordenar(self, columna: str) -> None:
         attr = _ATRIBUTO[columna]
@@ -94,3 +113,30 @@ class TablaResultados(ttk.Frame):
         if sel and self._al_abrir:
             v = self.tree.item(sel[0], "values")
             self._al_abrir(v[0], v[1])
+
+    def _notificar_seleccion(self) -> None:
+        if self._al_seleccionar:
+            self._al_seleccionar()
+
+    def _menu_contextual(self, evt) -> None:
+        iid = self.tree.identify_row(evt.y)
+        if not iid:
+            return
+        self.tree.selection_set(iid)
+        sel = self.seleccionado()
+        valido = bool(sel and normalizar_ip(sel[1]))
+        self._menu.entryconfig(0, state="normal" if valido else "disabled")
+        try:
+            self._menu.tk_popup(evt.x_root, evt.y_root)
+        finally:
+            self._menu.grab_release()
+
+    def _tracert_seleccionado(self) -> None:
+        sel = self.seleccionado()
+        if sel and self._al_tracert:
+            self._al_tracert(*sel)
+
+    def _historial_seleccionado(self) -> None:
+        sel = self.seleccionado()
+        if sel and self._al_abrir:
+            self._al_abrir(*sel)

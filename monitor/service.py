@@ -1,6 +1,7 @@
 """Logica de negocio: nodos -> ping -> clasificacion -> guardado."""
 from __future__ import annotations
 
+import threading
 from dataclasses import replace
 from datetime import datetime
 from typing import Callable, Optional
@@ -8,7 +9,7 @@ from typing import Callable, Optional
 from .config import DIAS_RETENCION, FMT_TS
 from .database import Repositorio
 from .models import EstadisticaPing, Estado, Nodo, ParametrosPing, Resultado
-from .pinger import Pinger
+from .pinger import EscaneoCancelado, Pinger
 from .utils import normalizar_ip
 
 
@@ -53,10 +54,13 @@ class MonitorService:
         params: ParametrosPing,
         progreso: Optional[Callable[[int, int], None]] = None,
         lista: str = "",
+        cancelar: Optional[threading.Event] = None,
     ) -> list[Resultado]:
         ts = datetime.now().strftime(FMT_TS)
         ips = sorted({ip for n in nodos if (ip := normalizar_ip(n.ip))})
-        stats = self.pinger.ping(ips, params, progreso)
+        stats = self.pinger.ping(ips, params, progreso, cancelar)
+        if cancelar is not None and cancelar.is_set():
+            raise EscaneoCancelado()   # cancelado: no se guarda nada
         resultados = [replace(r, lista=lista)
                       for r in clasificar(nodos, stats, params.lento_ms, ts)]
         self.repo.guardar(resultados)
