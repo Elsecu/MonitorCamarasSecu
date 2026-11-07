@@ -1,7 +1,7 @@
 # Monitor de Nodos
 
 Latencia y conectividad desde el nodo central hacia todos los nodos. Historial de 30 dias y exportacion a Excel.
-
+## OJO: Solo funciona para WINDOWS
 ## Estructura
 
 | Archivo | Responsabilidad | Toca aqui si quieres... |
