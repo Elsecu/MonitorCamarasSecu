@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass, fields
 from pathlib import Path
 
-APP_NAME = "MonitorNodos"
+APP_NAME = "MonitorCamaras"
 DATA_DIR = Path(os.environ.get("APPDATA", str(Path.home()))) / APP_NAME
 DB_PATH = DATA_DIR / "pings.db"
 SETTINGS_PATH = DATA_DIR / "config.json"

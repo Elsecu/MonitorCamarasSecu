@@ -16,6 +16,7 @@ class VentanaEscaneos(tk.Toplevel):
         super().__init__(parent)
         self.title(f"Historial de escaneos ({DIAS_RETENCION} dias)")
         self.geometry("660x480")
+        self._repo = repo
         self._al_elegir = al_elegir
 
         ttk.Label(self, text="Doble clic o pulsa el botón de abajo para ver el escaneo"
@@ -32,13 +33,20 @@ class VentanaEscaneos(tk.Toplevel):
         sb.pack(side="right", fill="y")
         self.tree.pack(fill="both", expand=True)
 
-        for ts, total, ok, lento, sin_resp, sin_ip in repo.escaneos():
-            self.tree.insert("", "end", iid=ts, values=(ts, total, ok, lento, sin_resp, sin_ip))
-
         ttk.Button(self, text="Ver este escaneo", command=self._elegir).pack(pady=8)
         self.tree.bind("<Double-1>", self._elegir)
+        self.recargar()
+
+    def recargar(self) -> None:
+        """Vuelve a leer los escaneos (conserva la seleccion si sigue existiendo)."""
+        sel = self.tree.selection()
+        self.tree.delete(*self.tree.get_children())
+        for ts, total, ok, lento, sin_resp, sin_ip in self._repo.escaneos():
+            self.tree.insert("", "end", iid=ts, values=(ts, total, ok, lento, sin_resp, sin_ip))
         hijos = self.tree.get_children()
-        if hijos:
+        if sel and self.tree.exists(sel[0]):
+            self.tree.selection_set(sel[0])
+        elif hijos:
             self.tree.selection_set(hijos[0])
 
     def _elegir(self, _evt=None) -> None:

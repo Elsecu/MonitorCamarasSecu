@@ -34,6 +34,7 @@ class VentanaPrincipal(tk.Tk):
         self.trabajador = Trabajador()
         self._ejecutando = False
         self._cancelar = threading.Event()
+        self._ventanas: dict = {}          # ventanas secundarias abiertas (una por clave)
         self._exportando = False
         self._proxima_auto = 0.0
 
@@ -173,7 +174,8 @@ class VentanaPrincipal(tk.Tk):
     def _abrir_historial(self, nombre: str, ip: str) -> None:
         if not nombre and not ip:
             return
-        VentanaHistorial(self, self.repo, nombre, ip)
+        self._abrir_unica(("historial", nombre or ip),
+                          lambda: VentanaHistorial(self, self.repo, nombre, ip))
 
     def _alternar_escaneo(self) -> None:
         """Un solo boton: ejecuta, y mientras corre cancela."""
@@ -200,10 +202,24 @@ class VentanaPrincipal(tk.Tk):
         if norm is None:
             messagebox.showinfo("Tracert", "Esta cámara no tiene una IP válida.")
             return
-        VentanaTracert(self, nombre or "", norm)
+        self._abrir_unica(("tracert", norm),
+                          lambda: VentanaTracert(self, nombre or "", norm))
 
     def _abrir_escaneos(self) -> None:
-        VentanaEscaneos(self, self.repo, self._ver_escaneo)
+        self._abrir_unica(("escaneos",),
+                          lambda: VentanaEscaneos(self, self.repo, self._ver_escaneo))
+
+    def _abrir_unica(self, clave, crear):
+        """Una sola ventana por clave: si ya esta abierta la trae al frente."""
+        self._ventanas = {k: w for k, w in self._ventanas.items() if w.winfo_exists()}
+        v = self._ventanas.get(clave)
+        if v is not None:
+            v.deiconify()
+            v.lift()
+            v.focus_force()
+            return v
+        v = self._ventanas[clave] = crear()
+        return v
 
     def _ver_escaneo(self, ts: str) -> None:
         """Carga un escaneo guardado en el panel principal."""
@@ -325,6 +341,9 @@ class VentanaPrincipal(tk.Tk):
             self.tabla.cargar(dato)
             self._aplicar_filtro()
             self._actualizar_contadores()
+            v = self._ventanas.get(("escaneos",))      # refresca la lista si esta abierta
+            if v is not None and v.winfo_exists():
+                v.recargar()            
             self.v_status.set(f"Terminado: {dato[0].ts if dato else ''}")
         else:
             self.v_status.set(f"Error: {dato}")
