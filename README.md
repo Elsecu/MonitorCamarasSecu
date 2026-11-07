@@ -75,7 +75,7 @@ Una fila por cámara y **una columna por escaneo**, de izquierda a derecha en or
 
 ## Datos guardados
 
-Carpeta `%APPDATA%\MonitorNodos\` (botón **Carpeta de datos**):
+Carpeta `%APPDATA%\MonitorCamaras\` (botón **Carpeta de datos**):
 
 | Archivo | Contenido |
 |---|---|
@@ -168,6 +168,6 @@ Excel -> excel_reader -> service (pinger -> clasificar) -> database -> tabla / e
 | Todas "Sin respuesta" | Sin permisos de administrador | Ejecutar como administrador |
 | Algunas "Sin respuesta" que sí están vivas | La cámara bloquea ICMP, o hay saturación | Revisar el firewall de la cámara; bajar "Dispositivos simultáneos" |
 | Caracteres raros en las notas del tracert | Página de códigos de la consola | Revisar `_codificacion()` en `tracert.py` |
-| La aplicación se cierra o falla algo | Error interno | Revisar `%APPDATA%\MonitorNodos\logs\monitor.log` |
+| La aplicación se cierra o falla algo | Error interno | Revisar `%APPDATA%\MonitorCamaras\logs\monitor.log` |
 | `py` no se reconoce | Python sin PATH | Reinstalar Python marcando *Add python.exe to PATH* |
 | El `.bat` falla en `pip` | Sin internet o proxy | Ejecutar `pip install -r requirements-dev.txt` manualmente |
